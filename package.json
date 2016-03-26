@@ -1,0 +1,42 @@
+{
+  "name": "ormur",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "A simple, sane and modern ORM library for Node.js",
+  "keywords": [
+    "ORM",
+    "model",
+    "query",
+    "database",
+    "Postgres",
+    "Knex"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hph/ormur.git"
+  },
+  "author": {
+    "email": "hph@hph.is",
+    "name": "Haukur Páll Hallvarðsson"
+  },
+  "engineStrict": true,
+  "engines": {
+    "node": ">=4.0.0"
+  },
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "mocha test/**"
+  },
+  "dependencies": {
+    "bluebird": "^3.3.4",
+    "inflection": "^1.8.0",
+    "knex": "^0.10.0",
+    "lodash": "^4.6.1"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^2.4.5",
+    "pg": "^4.5.1",
+    "uuid": "^2.0.1"
+  }
+}
