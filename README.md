@@ -84,7 +84,7 @@ const bcrypt = Promise.promisifyAll(require('bcrypt'));
 class User extends BaseModel {
   // This schema definition is merged in the base model. If no schema were
   // defined there, you would simply define a `schema` getter here instead.
-  // You can also define a schema getter here if you wanted to override the
+  // You can also define a `schema` getter here if you wanted to override the
   // base schema.
   get childSchema () {
     return {
@@ -133,6 +133,7 @@ const User = require('./user');
 const user = new User({ name: 'Example', email: 'example@example.com', password: 'password' });
 
 // Save the user and print the id created by the database.
+// The name of the class is pluralized and snake_cased by Ormur to get the table name.
 user.save().then(user => console.log(user.id));
 
 // Find a user by id and print it.
