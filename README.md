@@ -1,4 +1,4 @@
-# Ormur [![Build Status](https://travis-ci.org/hph/ormur.svg?branch=master)](https://travis-ci.org/hph/ormur) [![Package Version](https://img.shields.io/npm/v/ormur.svg)](https://www.npmjs.com/package/ormur) [![Node Version](https://img.shields.io/node/v/ormur.svg)](https://nodejs.org/en/)
+# Ormur [![Build Status](https://travis-ci.org/hph/ormur.svg?branch=master)](https://travis-ci.org/hph/ormur) [![Package Version](https://img.shields.io/npm/v/ormur.svg)](https://www.npmjs.com/package/ormur) [![Node Version](https://img.shields.io/node/v/ormur.svg)](https://nodejs.org/en/) [![Test Coverage](https://img.shields.io/codecov/c/github/hph/ormur.svg)](https://codecov.io/github/hph/ormur?branch=master)
 
 > A simple, sane & modern ORM library for Node.js
 

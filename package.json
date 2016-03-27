@@ -25,7 +25,8 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "test": "mocha test/**"
+    "test": "mocha",
+    "coverage": "istanbul cover node_modules/mocha/bin/_mocha && codecov"
   },
   "dependencies": {
     "bluebird": "^3.3.4",
@@ -35,6 +36,8 @@
   },
   "devDependencies": {
     "chai": "^3.5.0",
+    "codecov": "^1.0.1",
+    "istanbul": "^0.4.2",
     "mocha": "^2.4.5",
     "pg": "^4.5.1",
     "uuid": "^2.0.1"
