@@ -1,4 +1,6 @@
-# Ormur [![Build Status](https://travis-ci.org/hph/ormur.svg?branch=master)](https://travis-ci.org/hph/ormur) [![Package Version](https://img.shields.io/npm/v/ormur.svg)](https://www.npmjs.com/package/ormur) [![Node Version](https://img.shields.io/node/v/ormur.svg)](https://nodejs.org/en/) [![Test Coverage](https://img.shields.io/codecov/c/github/hph/ormur.svg)](https://codecov.io/github/hph/ormur?branch=master)
+# Ormur
+
+[![Package Version](https://img.shields.io/npm/v/ormur.svg)](https://www.npmjs.com/package/ormur) [![Build Status](https://travis-ci.org/hph/ormur.svg?branch=master)](https://travis-ci.org/hph/ormur) [![Test Coverage](https://img.shields.io/codecov/c/github/hph/ormur.svg)](https://codecov.io/github/hph/ormur?branch=master) [![License](https://img.shields.io/npm/l/ormur.svg)](https://tldrlegal.com/license/mit-license)
 
 > A simple, sane & modern ORM library for Node.js
 
@@ -64,7 +66,8 @@ class BaseModel extends Ormur {
 ```
 
 This example assumes that you're using Postgres and have a table called
-`ormur`. You can also simply set `this.knex` to the content of your Knexfile.
+`ormur`. You can also simply set `this.knexOptions` to the content of
+your Knexfile.
 
 Now you can create a model inheriting from `BaseModel`:
 
