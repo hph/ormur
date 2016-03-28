@@ -1,75 +1,68 @@
 'use strict';
 
+const _ = require('lodash');
+const knex = require('knex');
 const uuid = require('uuid');
 const expect = require('chai').expect;
 
 const Ormur = require('../lib');
+const util = require('../lib/util');
+
+const knexConnection = knex({
+  client: 'postgresql',
+  connection: 'postgres://postgres:@localhost:5432/ormur-test'
+});
+
+
+class BaseModel extends Ormur {
+  constructor () {
+    super(...arguments);
+    this.knex = knexConnection;
+  }
+}
+
+class User extends BaseModel {
+  get schema () {
+    return {
+      id: {
+        type: 'integer',
+        primaryKey: true
+      },
+      name: {
+        type: 'string',
+        notNull: true
+      },
+      password: {
+        type: 'string',
+        transform: (value) => `!!!${value}!!!`,
+        hidden: true
+      },
+      foreignTableId: {
+        type: 'uuid',
+        // This is only here to test that transforms can return Promises.
+        transform: (value) => Promise.resolve(uuid.v4()),
+        // This is only here to test that custom validations are run.
+        validate: (value) => util.isUuid(value)
+      },
+      isCool: {
+        type: 'boolean'
+      },
+      createdAt: {
+        type: 'date',
+        defaultValue: () => new Date()
+      }
+    };
+  }
+}
 
 
 describe('Ormur', () => {
-  class BaseModel extends Ormur {
-    constructor (attributes) {
-      super(attributes);
-      this.knexOptions = {
-        client: 'postgresql',
-        connection: 'postgres:///ormur'
-      };
-    }
-  }
-
-  class User extends BaseModel {
-    get schema () {
-      return {
-        id: {
-          type: 'integer',
-          primaryKey: true
-        },
-        name: {
-          type: 'string'
-        },
-        password: {
-          type: 'string',
-          transform: (value) => `!!!${value}!!!`,
-          hidden: true
-        },
-        foreignTableId: {
-          type: 'uuid'
-        },
-        isCool: {
-          type: 'boolean'
-        },
-        createdAt: {
-          type: 'date'
-        }
-      };
-    }
-  }
-
-  let user;
-
-  beforeEach(() => {
-    user = new User({ id: 1, password: 'foobar' });
-  });
-
   describe('Subclassing', () => {
-    it('should allow subclassing', () => {
-      expect(class Foo extends Ormur { }).to.not.throw;
-    });
-
-    it('should allow subclassing and setting columns with the constructor', () => {
-      const ormur = new Ormur({ id: 1 });
-      expect(ormur.id).to.be.undefined;
-      expect(user.id).to.equal(1);
-    });
-
-    it('should allow subclassing to include common fields in a base model', () => {
+    it('should allow optional subclassing to include common fields in a base model', () => {
       class WithPrimaryKey extends Ormur {
         constructor (attributes) {
           super(attributes);
-          this.knexOptions = {
-            client: 'postgresql',
-            connection: 'postgres:///ormur'
-          };
+          this.knex = knexConnection;
         }
 
         get schema () {
@@ -92,19 +85,92 @@ describe('Ormur', () => {
         }
       }
 
-      const foo = new WithPrimaryKey({ id: 2, foo: 'bar' });
-      expect(foo.id).to.eq(2);
-      expect(foo.foo).to.not.eq('bar');
+      class Override extends WithPrimaryKey {
+        get schema () {
+          return {
+            foo: {
+              type: 'string'
+            }
+          };
+        }
+      }
 
-      const instance = new SubClassed({ id: 2, foo: 'bar' });
-      expect(instance.id).to.eq(2);
-      expect(instance.foo).to.eq('bar');
+      const superInstance = new WithPrimaryKey({ id: 1, foo: 'bar' });
+      expect(superInstance.id).to.eq(1);
+      expect(superInstance.foo).to.be.undefined;
+
+      const subInstance = new SubClassed({ id: 1, foo: 'bar' });
+      expect(subInstance.id).to.eq(1);
+      expect(subInstance.foo).to.eq('bar');
+
+      const overrideInstance = new Override({ foo: 'bar' });
+      expect(overrideInstance.id).to.be.undefined;
+      expect(overrideInstance.foo).to.eq('bar');
     });
   });
 
-  describe('Columns', () => {
-    function testInstantiation (Model, attributes) {
+  describe('Ormur#constructor', () => {
+    it('should inflect the table name from the class name', () => {
+      const instance = new User();
+      expect(instance._tableName).to.eq('users');
+    });
+
+    it('should allow instantiation with attributes', () => {
+      const instance = new User({ id: 1 });
+      expect(instance.id).to.eq(1);
+    });
+
+    it('should find and set the primary key', () => {
+      const instance = new User();
+      expect(instance._primaryKey).to.eq('id');
+    });
+
+    it('should allow instantiating for context only (for static methods)', () => {
+      const instance = new User({ _empty: true });
+      // We need the table name and primary key for many queries.
+      expect(instance._tableName).to.be.defined;
+      expect(instance._primaryKey).to.be.defined;
+      // But we don't set any properties, as we're not actually passing meaningful attributes.
+      expect(instance._properties).to.be.undefined;
+    });
+
+    it('should set up getters and setters for all schema columns', () => {
+      const instance = new User({ id: 1 });
+      _.each(_.keys(User.prototype.schema), (column) => {
+        const propertyDescriptor = Object.getOwnPropertyDescriptor(instance, column);
+        expect(propertyDescriptor.get).to.be.defined;
+        expect(propertyDescriptor.set).to.be.defined;
+      });
+      expect(Object.getOwnPropertyDescriptor(instance, 'foo')).to.be.undefined;
+      expect(Object.getOwnPropertyDescriptor(instance, 'foo')).to.be.undefined;
+    });
+
+    it('should automatically camelCase snake_cased keys', () => {
+      const instance = new User({ is_cool: true });
+      expect(instance.isCool).to.be.true;
+      expect(instance.is_cool).to.be.undefined;
+    });
+
+    it('should store attributes in `_properties`', () => {
+      const instance = new User();
+      expect(instance._properties).to.eql({});
+      instance.id = 1;
+      expect(instance._properties).to.eql({ id: 1 });
+      const attributes = { id: 2, name: 'Hawk' };
+      const instanceWithAttributes = new User(attributes);
+      expect(instanceWithAttributes._properties).to.eql(attributes);
+    });
+
+    it('should ensure that knex is configured');
+    it('should ensure that a primary key is configured');
+  });
+
+  describe('Validation', () => {
+    function testInstantiation (Model, attributes, noName) {
       try {
+        if (!noName) {
+          attributes.name = attributes.name || 'temp';
+        }
         new Model(attributes).validate();
         return true;
       } catch (err) {
@@ -137,90 +203,151 @@ describe('Ormur', () => {
       expect(testInstantiation(User, { isCool: 'foo' })).to.be.false;
     });
 
-    it('should call the transform function when saving a value');
-
-    it('should support promises in transform functions');
-
-    it('should validate that columns with notNull set to true are not null', () => {
-      try {
-        new Message();
-        expect(false).to.be.true;
-      } catch (err) {
-        expect(true).to.be.true;
-      }
+    it('should validate presence of a value or default value of notNull columns', () => {
+      expect(testInstantiation(User, {}, true)).to.be.false;
     });
 
-    it('should run all custom column validations');
+    it('should validate that values and default values match column types');
+    it('should validate columns with their custom column validators');
   });
 
-  describe('Ormur#constructor', () => {
-    it('should allow instantiation with attributes', () => {
-      expect(user.id).to.eq(1);
+  describe('Ormur#setDefaults', () => {
+    it('should set the default values to columns without defined values', () => {
+      const instance = new User();
+      instance.setDefaults();
+      expect(instance.createdAt).to.be.defined;
     });
+  });
 
-    it('should inflect the table name from the class name', () => {
-      expect(user._tableName).to.eq('users');
+  describe('Ormur#callTransforms', () => {
+    it('should call transform functions', () => {
+      const instance = new User({ password: 'foo' });
+      return instance.callTransforms().then(() => {
+        expect(instance.password).to.eq('!!!foo!!!');
+      });
     });
+  });
 
-    it('should set up getters and setters for all valid attributes', () => {
-      expect(user.id).to.eq(1);
-      user.id = 2;
-      expect(user.id).to.eq(2);
-      user.foo = 1;
-      expect(Object.getOwnPropertyDescriptor(user, 'id').get).to.be.defined;
-      expect(Object.getOwnPropertyDescriptor(user, 'id').set).to.be.defined;
-      expect(Object.getOwnPropertyDescriptor(user, 'foo').get).to.be.undefined;
-      expect(Object.getOwnPropertyDescriptor(user, 'foo').set).to.be.undefined;
-    });
+  describe('Ormur#beforeSave', () => {
+    it('should call `validate`, `setDefaults` and `callTransforms`');
   });
 
   describe('Ormur#save', () => {
-    it('should persist the values to the database');
-    it('should automatically convert camelCased values to snake_case');
-    it('should update the instance primary key if it was not previously set');
+    it('should insert a new row into the database and update the primary key of the instance', () => {
+      const instance = new User({ name: 'Ormur' });
+      expect(instance.id).to.be.undefined;
+      return instance.save().then(user => {
+        expect(user.id).to.be.defined;
+      });
+    });
   });
 
   describe('Ormur#update', () => {
-    it('should persist the values to the database');
-    it('should automatically convert camelCased values to snake_case');
+    it('should update an existing row', () => {
+      return User.create({ name: 'Falcon' }).then(user => {
+        expect(user.name).to.eq('Falcon');
+        user.name = 'Hawk';
+        return user.update();
+      }).then(user => {
+        expect(user.name).to.eq('Hawk');
+      });
+    });
   });
 
   describe('Ormur#destroy', () => {
-    it('should delete the row from the database');
-    it('should nullify the instance');
+    it('should delete the row from the database, returning null', () => {
+      let id;
+      return User.create({ name: 'Hawk' }).then(user => {
+        id = user.id;
+        return user.destroy();
+      }).then(result => {
+        expect(result).to.be.null;
+        return User.find(id);
+      }).then(user => {
+        expect(user).to.be.null;
+      });
+    });
   });
 
   describe('Ormur#toJSON', () => {
     it('should return an object to be used by JSON.stringify', () => {
-      expect(user.toJSON()).to.be.object;
-      expect(JSON.parse(JSON.stringify(user))).to.eql(user.toJSON());
+      const instance = new User({ id: 1, name: 'Hawk' });
+      expect(instance.toJSON()).to.be.object;
+      expect(JSON.parse(JSON.stringify(instance))).to.eql(instance.toJSON());
     });
 
     it('should omit columns with hidden set to true', () => {
-      expect(user.toJSON().id).to.be.defined;
-      expect(user.toJSON().password).to.be.undefined;
+      const instance = new User({ id: 1, password: 'password123' });
+      expect(instance.toJSON().id).to.be.defined;
+      expect(instance.toJSON().password).to.be.undefined;
     });
   });
 
   describe('Ormur.find', () => {
-    it('should find a record by the model\'s primary key');
-    it('should resolve to an instance of the model if found');
-    it('should resolve null if nothing was found');
+    it('should find a record by primary key and resolve to the instance', () => {
+      let id;
+      return User.create({ name: 'Hawk' }).then(user => {
+        id = user.id;
+        return User.find(id);
+      }).then(user => {
+        expect(user.id).to.eq(id);
+        expect(user.name).to.eq('Hawk');
+      });
+    });
+
+    it('should resolve null if nothing is found', () => {
+      return User.find(0).then(user => {
+        expect(user).to.be.null;
+      });
+    });
   });
 
   describe('Ormur.where', () => {
-    it('should find all records by the given attributes');
-    it('should resolve to an array of instances if found');
-    it('should resolve to an empty array if nothing was found');
+    it('should find all records by the given attributes and return instances', () => {
+      const attributes = { name: 'Hawk' };
+      const ids = [];
+      return User.create(attributes).then(user => {
+        ids.push(user.id);
+        return User.create(attributes);
+      }).then(user => {
+        ids.push(user.id);
+        return User.where(attributes);
+      }).then(users => {
+        users = _.filter(users, (user) => _.includes(ids, user.id));
+        expect(users.length).to.eq(2);
+      });
+    });
+
+    it('should resolve to an empty array if nothing was found', () => {
+      return User.where({ name: 'Nobody exists with this name' }).then(users => {
+        expect(users.length).to.eq(0);
+      });
+    });
   });
 
   describe('Ormur.create', () => {
-    it('should persist the record to the database');
-    it('should return a new instance of the model with the given attributes');
+    it('should create a new instance and persist the data', () => {
+      return User.create({ name: 'Hawk' }).then(user => {
+        expect(user.id).to.be.defined;
+        expect(user.constructor).to.eq(User);
+      });
+    });
   });
 
   describe('Ormur.destroy', () => {
-    it('should destroy the row from the database by primary key');
+    it('should destroy the row from the database by primary key and resolve to null', () => {
+      let id;
+      return User.create({ name: 'Hawk' }).then(user => {
+        id = user.id;
+        expect(id).to.be.defined;
+        return User.destroy(id);
+      }).then(res => {
+        expect(res).to.be.null;
+        return User.find(id);
+      }).then(res => {
+        expect(res).to.be.null;
+      });
+    });
   });
 
   it('should perhaps warn about trying to write columns that dont exist');

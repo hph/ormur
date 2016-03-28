@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "dependencies": {
+    "bcrypt": "^0.8.5",
+    "bluebird": "^3.3.4",
+    "ormur": "^0.1.0"
+  }
+}

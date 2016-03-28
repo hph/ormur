@@ -1,6 +1,6 @@
 {
   "name": "ormur",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "description": "A simple, sane and modern ORM library for Node.js",
   "keywords": [
@@ -25,8 +25,8 @@
   },
   "main": "lib/index.js",
   "scripts": {
-    "test": "mocha",
-    "coverage": "istanbul cover node_modules/mocha/bin/_mocha && codecov"
+    "test": "node ./test/bootstrap.js; mocha",
+    "coverage": "node ./test/bootstrap.js; istanbul cover node_modules/mocha/bin/_mocha && codecov"
   },
   "dependencies": {
     "bluebird": "^3.3.4",

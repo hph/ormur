@@ -22,120 +22,57 @@ Requires Node.js v4.0.0 or higher.
 
     npm install ormur
 
-## Example
+## Examples
 
-You will have to create a base model for other models to inherit from.
-This model should (at a minumum) set `this.knexOptions` and can optionally
-define a base schema and override Ormur methods.
+Check out the [basic example](https://github.com/hph/ormur/tree/master/example/basic)
+for an example of a minimal base model and an example model inheriting from it.
 
-See [Knex initialization](http://knexjs.org/#Installation-client)
-and [Knexfile](http://knexjs.org/#knexfile) for Knex configuration options.
+For an example of how you may share schema between models, check the [advanced
+example](https://github.com/hph/ormur/tree/master/example/advanced).
 
-```javascript
-'use strict';
-
-const Ormur = require('ormur');
-
-class BaseModel extends Ormur {
-  constructor () {
-    super(...arguments); // The spread operator is available in Node.js v5.0.0+.
-    this.knexOptions = {
-      client: 'postgresql',
-      connection: 'postgres:///ormur'
-    };
-  }
-
-  // Defining schema in the base model is completely optional.
-  get schema () {
-    return this.merge({
-      id: {              // The keys denote the field name.
-        type: 'integer', // Types are used to validate the data before saving.
-        primaryKey: true // A primary key is required to be able to run queries.
-      },
-      createdAt: { // Keys are automatically snake_cased before data is persisted.
-        type: 'date',
-        defaultValue: () => new Date() // Set a value to the field before saving.
-      },
-      updatedAt: {
-        type: 'date',
-        defaultValue: () => new Date()
-      }
-    }, this.childSchema);
-  }
-}
-```
-
-This example assumes that you're using Postgres and have a table called
-`ormur`. You can also simply set `this.knexOptions` to the content of
-your Knexfile.
-
-Now you can create a model inheriting from `BaseModel`:
+The `User` model defined in the above examples could be used like this,
+assuming that the relevant database table exists:
 
 ```javascript
-'use strict';
+const User = require('./example/basic/user');
 
-const BaseModel = require('./base-model');
+// Create an instance
+const user = new User({ name: 'Hawk', email: 'test@example.com', password: 'password' });
 
-// These imports are only required for the example User model below (see `encryptPassword`).
-const Promise = require('bluebird');
-const bcrypt = Promise.promisifyAll(require('bcrypt'));
+// Persist it to the database
+user.save().then(user => {
+  console.log(`User ${user.name} with id ${user.id} saved.`);
+});
 
+// Find users with the name "Hawk"
+User.where({ name: 'Hawk' }).then(users => {
+  // Array of User instances.
+  console.log(users);
+});
 
-class User extends BaseModel {
-  // This schema definition is merged in the base model. If no schema were
-  // defined there, you would simply define a `schema` getter here instead.
-  // You can also define a `schema` getter here if you wanted to override the
-  // base schema.
-  get childSchema () {
-    return {
-      email: {
-        type: 'string',
-        notNull: true, // A built-in validation.
-        hidden: true,  // Do not include this field when the model is serialized.
-        validate: (value) => value.includes('@') // A custom validation.
-      },
-      password: {
-        type: 'string',
-        notNull: true,
-        hidden: true,
-        transform: this.encryptPassword, // Transform the value of the field before saving.
-        validate: (value) => value.length >= 6
-      },
-      name: {
-        type: 'string',
-        notNull: true
-      }
-    };
-  }
+// Find a user by its primary key and remove it from the database
+User.find(1).then(user => user.destroy());
 
-  /**
-   * Return the password salted and hashed with bcrypt.
-   *
-   * @param {String} password The password to encrypt.
-   * @returns {String} The encrypted password.
-   */
-  encryptPassword (password) {
-    return bcrypt.genSaltAsync(10).then(salt => {
-      return bcrypt.hashAsync(password, salt);
-    });
-  }
-}
+// Or, maybe more succintly
+User.destroy(1);
 ```
 
-Using the above model is quite simple:
+## API
 
-```javascript
-'use strict';
+Documentation pending.
 
-const User = require('./user');
+### Static methods
 
-// Create an instance of User.
-const user = new User({ name: 'Example', email: 'example@example.com', password: 'password' });
+- `Ormur.find` - Find row by primary key.
+- `Ormur.where` - Find rows by attributes.
+- `Ormur.create` - Create row with attributes.
+- `Ormur.destroy` - Remove row by primary key.
 
-// Save the user and print the id created by the database.
-// The name of the class is pluralized and snake_cased by Ormur to get the table name.
-user.save().then(user => console.log(user.id));
+### Instance methods
 
-// Find a user by id and print it.
-User.find(1).then(user => console.log(user));
-```
+- `Ormur#validate` - Validate attributes.
+- `Ormur#save` - Insert row into database with attributes from instance.
+- `Ormur#update` - Update existing row in database with attributes from instance.
+- `Ormur#destroy` - Remove row from database by primary key of instance.
+- `Ormur#setDefaults` - Set default values to instance attributes.
+- `Ormur#merge` - Merge two objects (inheritance helper).
