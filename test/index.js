@@ -161,7 +161,16 @@ describe('Ormur', () => {
       expect(instanceWithAttributes._properties).to.eql(attributes);
     });
 
-    it('should ensure that knex is configured');
+    it('should ensure that knex is configured', (cb) => {
+      class InvalidBaseModel extends Ormur { }
+      try {
+        InvalidBaseModel.prototype._ensureMinimumConfiguration();
+      } catch (err) {
+        // We expect this to fail.
+        expect(err).to.not.be.undefined;
+      }
+      cb();
+    });
     it('should ensure that a primary key is configured');
   });
 
@@ -208,7 +217,28 @@ describe('Ormur', () => {
     });
 
     it('should validate that values and default values match column types');
-    it('should validate columns with their custom column validators');
+    it('should validate columns with their custom column validators', (cb) => {
+      class WithCustomValidator extends BaseModel {
+        get schema () {
+          return {
+            id: {
+              type: 'integer',
+              primaryKey: true,
+              validate: (value) => value > 0
+            },
+          }
+        }
+      }
+
+      const instance = new WithCustomValidator({ id: 0 });
+      try {
+        instance.validate();
+      } catch (err) {
+        // Expected to fail.
+        expect(err).to.not.be.undefined;
+        cb();
+      }
+    });
   });
 
   describe('Ormur#setDefaults', () => {
@@ -224,6 +254,25 @@ describe('Ormur', () => {
       const instance = new User({ password: 'foo' });
       return instance.callTransforms().then(() => {
         expect(instance.password).to.eq('!!!foo!!!');
+      });
+    });
+
+    it('should always resolve a promise, even when the transform does not', () => {
+      class TransformModel extends BaseModel {
+        get schema () {
+          return {
+            id: {
+              type: 'integer',
+              primaryKey: true,
+              transform: (value) => value + 1
+            }
+          };
+        }
+      }
+
+      const instance = new TransformModel({ id: 1 });
+      return instance.callTransforms().then(() => {
+        expect(instance.id).to.eq(2);
       });
     });
   });

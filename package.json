@@ -26,7 +26,8 @@
   "main": "lib/index.js",
   "scripts": {
     "test": "node ./test/bootstrap.js; mocha",
-    "coverage": "node ./test/bootstrap.js; istanbul cover node_modules/mocha/bin/_mocha && codecov"
+    "lint": "eslint lib/*",
+    "build": "npm run lint && node ./test/bootstrap.js; istanbul cover node_modules/mocha/bin/_mocha && codecov"
   },
   "dependencies": {
     "bluebird": "^3.3.4",
@@ -37,6 +38,8 @@
   "devDependencies": {
     "chai": "^3.5.0",
     "codecov": "^1.0.1",
+    "eslint": "^2.5.3",
+    "eslint-config-airbnb": "^6.2.0",
     "istanbul": "^0.4.2",
     "mocha": "^2.4.5",
     "pg": "^4.5.1",
